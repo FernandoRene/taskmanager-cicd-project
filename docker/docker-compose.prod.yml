@@ -1,0 +1,118 @@
+version: '3.8'
+
+services:
+  postgres-blue:
+    image: postgres:13-alpine
+    container_name: taskmanager-postgres-blue
+    restart: unless-stopped
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_DB: taskmanager_prod
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${PROD_DB_PASSWORD}
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - postgres_blue_data:/var/lib/postgresql/data
+    networks:
+      - taskmanager-blue
+
+  backend-blue:
+    image: taskmanager-backend:${BLUE_VERSION}
+    container_name: taskmanager-backend-blue
+    restart: unless-stopped
+    ports:
+      - "3004:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=postgres://postgres:${PROD_DB_PASSWORD}@postgres-blue:5432/taskmanager_prod
+      - SECRET_KEY=${PROD_SECRET_KEY}
+      - TOKEN_EXPIRATION=1h
+    depends_on:
+      - postgres-blue
+    networks:
+      - taskmanager-blue
+
+  frontend-blue:
+    image: taskmanager-frontend:${BLUE_VERSION}
+    container_name: taskmanager-frontend-blue
+    restart: unless-stopped
+    ports:
+      - "3005:80"
+    environment:
+      - REACT_APP_API_URL=http://localhost:3004
+      - REACT_APP_ENV=production
+    depends_on:
+      - backend-blue
+    networks:
+      - taskmanager-blue
+
+  postgres-green:
+    image: postgres:13-alpine
+    container_name: taskmanager-postgres-green
+    restart: unless-stopped
+    ports:
+      - "5435:5432"
+    environment:
+      POSTGRES_DB: taskmanager_prod
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${PROD_DB_PASSWORD}
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - postgres_green_data:/var/lib/postgresql/data
+    networks:
+      - taskmanager-green
+
+  backend-green:
+    image: taskmanager-backend:${GREEN_VERSION}
+    container_name: taskmanager-backend-green
+    restart: unless-stopped
+    ports:
+      - "3006:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=postgres://postgres:${PROD_DB_PASSWORD}@postgres-green:5432/taskmanager_prod
+      - SECRET_KEY=${PROD_SECRET_KEY}
+      - TOKEN_EXPIRATION=1h
+    depends_on:
+      - postgres-green
+    networks:
+      - taskmanager-green
+
+  frontend-green:
+    image: taskmanager-frontend:${GREEN_VERSION}
+    container_name: taskmanager-frontend-green
+    restart: unless-stopped
+    ports:
+      - "3007:80"
+    environment:
+      - REACT_APP_API_URL=http://localhost:3006
+      - REACT_APP_ENV=production
+    depends_on:
+      - backend-green
+    networks:
+      - taskmanager-green
+
+  nginx:
+    image: nginx:alpine
+    container_name: taskmanager-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+    networks:
+      - taskmanager-blue
+      - taskmanager-green
+
+volumes:
+  postgres_blue_data:
+  postgres_green_data:
+
+networks:
+  taskmanager-blue:
+    driver: bridge
+  taskmanager-green:
+    driver: bridge

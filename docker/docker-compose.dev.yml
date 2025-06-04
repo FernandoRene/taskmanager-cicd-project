@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  postgres-dev:
+    image: postgres:13-alpine
+    container_name: taskmanager-postgres-dev
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: taskmanager_dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password123
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    networks:
+      - taskmanager-dev
+
+  backend-dev:
+    build: 
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: taskmanager-backend-dev
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=postgres://postgres:password123@postgres-dev:5432/taskmanager_dev
+      - SECRET_KEY=dev_secret_key_taskmanager_2025
+      - TOKEN_EXPIRATION=24h
+    depends_on:
+      - postgres-dev
+    volumes:
+      - ../backend:/usr/src/app
+      - /usr/src/app/node_modules
+    networks:
+      - taskmanager-dev
+
+  frontend-dev:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: taskmanager-frontend-dev
+    restart: unless-stopped
+    ports:
+      - "3001:80"
+    environment:
+      - REACT_APP_API_URL=http://localhost:3000
+      - REACT_APP_ENV=development
+    depends_on:
+      - backend-dev
+    networks:
+      - taskmanager-dev
+
+volumes:
+  postgres_dev_data:
+
+networks:
+  taskmanager-dev:
+    driver: bridge

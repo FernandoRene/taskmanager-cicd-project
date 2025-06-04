@@ -1,0 +1,45 @@
+# =====================================================
+# .DOCKERIGNORE - QUE NO COPIAR AL CONTAINER
+# =====================================================
+
+# Dependencias (se instalan con npm ci)
+node_modules
+npm-debug.log*
+
+# Archivos de desarrollo
+.env
+.env.local
+.env.development
+.env.test
+
+# Logs
+logs
+*.log
+
+# Base de datos local
+*.db
+*.sqlite
+
+# Archivos de IDE
+.vscode/
+.idea/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile
+.dockerignore
+
+# Testing
+coverage/
+.nyc_output
+
+# Temporal
+tmp/
+temp/

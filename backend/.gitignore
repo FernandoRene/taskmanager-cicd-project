@@ -1,0 +1,33 @@
+# Ignorar la carpeta node_modules (común en proyectos Node.js)
+node_modules/
+
+# Ignorar archivos de log
+*.log
+
+# Ignorar archivos de variables de entorno (.env)
+.env
+
+# Ignorar carpetas de compilación o build (si las tienes)
+dist/
+build/
+out/
+
+# Ignorar archivos de caché o temporales
+*.cache
+*.tmp
+*.swp
+
+# Ignorar archivos de configuración de IDEs (opcional)
+.idea/ # Para IntelliJ IDEA
+.vscode/ # Para Visual Studio Code
+*.suo # Para Visual Studio
+
+# Ignorar archivos de sistema operativo (opcional)
+.DS_Store # Para macOS
+Thumbs.db # Para Windows
+
+# Ignorar la carpeta de paquetes de npm (opcional)
+package-lock.json
+
+# Ignorar la carpeta de paquetes de yarn (opcional)
+yarn.lock

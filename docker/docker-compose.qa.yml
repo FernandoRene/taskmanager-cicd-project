@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  postgres-qa:
+    image: postgres:13-alpine
+    container_name: taskmanager-postgres-qa
+    restart: unless-stopped
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: taskmanager_qa
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: qa_password_123
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - postgres_qa_data:/var/lib/postgresql/data
+    networks:
+      - taskmanager-qa
+
+  backend-qa:
+    image: taskmanager-backend:${BUILD_NUMBER:-latest}
+    container_name: taskmanager-backend-qa
+    restart: unless-stopped
+    ports:
+      - "3002:3000"
+    environment:
+      - NODE_ENV=testing
+      - PORT=3000
+      - DATABASE_URL=postgres://postgres:qa_password_123@postgres-qa:5432/taskmanager_qa
+      - SECRET_KEY=qa_secret_key_taskmanager_2025
+      - TOKEN_EXPIRATION=24h
+    depends_on:
+      - postgres-qa
+    networks:
+      - taskmanager-qa
+
+  frontend-qa:
+    image: taskmanager-frontend:${BUILD_NUMBER:-latest}
+    container_name: taskmanager-frontend-qa
+    restart: unless-stopped
+    ports:
+      - "3003:80"
+    environment:
+      - REACT_APP_API_URL=http://localhost:3002
+      - REACT_APP_ENV=qa
+    depends_on:
+      - backend-qa
+    networks:
+      - taskmanager-qa
+
+volumes:
+  postgres_qa_data:
+
+networks:
+  taskmanager-qa:
+    driver: bridge
