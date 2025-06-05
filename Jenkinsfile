@@ -8,10 +8,8 @@ pipeline {
     
     environment {
         BUILD_NUMBER = "${env.BUILD_NUMBER}"
-        GIT_COMMIT_SHORT = sh(
-            script: "git rev-parse --short HEAD || echo 'unknown'", 
-            returnStdout: true
-        ).trim()
+        // Manejo más robusto de variables Git
+        GIT_COMMIT_SHORT = ""
         BRANCH_NAME = "${env.BRANCH_NAME ?: env.GIT_BRANCH?.replaceAll('origin/', '') ?: 'main'}"
     }
     
@@ -19,10 +17,23 @@ pipeline {
         stage('🔍 Checkout & Info') {
             steps {
                 echo "📥 Descargando código desde Git..."
-                echo "🌿 Branch: ${BRANCH_NAME}"
-                echo "📝 Commit: ${GIT_COMMIT_SHORT}"
-                echo "🏗️ Build: #${BUILD_NUMBER}"
                 checkout scm
+                
+                script {
+                    // Obtener commit hash de forma segura
+                    try {
+                        env.GIT_COMMIT_SHORT = sh(
+                            script: "git rev-parse --short HEAD", 
+                            returnStdout: true
+                        ).trim()
+                    } catch (Exception e) {
+                        env.GIT_COMMIT_SHORT = "unknown"
+                    }
+                }
+                
+                echo "🌿 Branch: ${BRANCH_NAME}"
+                echo "📝 Commit: ${env.GIT_COMMIT_SHORT}"
+                echo "🏗️ Build: #${BUILD_NUMBER}"
                 
                 sh '''
                     echo "📁 Estructura del proyecto:"
@@ -492,7 +503,7 @@ pipeline {
                     echo ""
                     echo "📋 INFORMACIÓN DEL BUILD:"
                     echo "├── 🌿 Branch: ''' + BRANCH_NAME + '''"
-                    echo "├── 📝 Commit: ''' + GIT_COMMIT_SHORT + '''"
+                    echo "├── 📝 Commit: ''' + env.GIT_COMMIT_SHORT + '''"
                     echo "├── 🎯 Ambiente: ''' + env.DEPLOY_ENV + '''"
                     echo "├── ⏰ Completado: $(date)"
                     echo "└── 🔗 Pipeline: TaskManager CI/CD"
@@ -534,6 +545,7 @@ pipeline {
     post {
         success {
             script {
+                def commitInfo = env.GIT_COMMIT_SHORT ?: "unknown"
                 def deployInfo = env.DEPLOY_ENV != 'feature' ? 
                     "🌐 URL: ${env.APP_URL}" : "🔧 Feature branch - No deployment"
                 
@@ -547,8 +559,8 @@ pipeline {
                 📊 Información del Build:
                 ├── 🏷️  Build: #${BUILD_NUMBER}
                 ├── 🌿 Branch: ${BRANCH_NAME}
-                ├── 📝 Commit: ${GIT_COMMIT_SHORT}
-                ├── 🎯 Ambiente: ${env.DEPLOY_ENV.toUpperCase()}
+                ├── 📝 Commit: ${commitInfo}
+                ├── 🎯 Ambiente: ${env.DEPLOY_ENV?.toUpperCase()}
                 ├── ⏰ Completado: ${new Date()}
                 ├── ⚡ Duración: ~3m 10s
                 └── ${deployInfo}
@@ -563,43 +575,52 @@ pipeline {
             }
         }
         failure {
-            echo """
-            
-            ❌ PIPELINE FALLÓ
-            ╔═══════════════════════════════════════════════════════╗
-            ║                    BUILD FAILED                       ║
-            ╚═══════════════════════════════════════════════════════╝
-            
-            📊 Información del Error:
-            ├── Build: #${BUILD_NUMBER}
-            ├── Branch: ${BRANCH_NAME}
-            ├── Commit: ${GIT_COMMIT_SHORT}
-            ├── Ambiente: ${env.DEPLOY_ENV}
-            └── Timestamp: ${new Date()}
-            
-            🔍 Acciones recomendadas:
-            ├── 📋 Revisar logs detallados arriba
-            ├── 🔧 Verificar cambios en el código
-            ├── 🧪 Ejecutar tests localmente
-            └── 🔄 Hacer nuevo commit con fixes
-            
-            """
+            script {
+                def commitInfo = env.GIT_COMMIT_SHORT ?: "unknown"
+                echo """
+                
+                ❌ PIPELINE FALLÓ
+                ╔═══════════════════════════════════════════════════════╗
+                ║                    BUILD FAILED                       ║
+                ╚═══════════════════════════════════════════════════════╝
+                
+                📊 Información del Error:
+                ├── Build: #${BUILD_NUMBER}
+                ├── Branch: ${BRANCH_NAME}
+                ├── Commit: ${commitInfo}
+                ├── Ambiente: ${env.DEPLOY_ENV ?: 'unknown'}
+                └── Timestamp: ${new Date()}
+                
+                🔍 Acciones recomendadas:
+                ├── 📋 Revisar logs detallados arriba
+                ├── 🔧 Verificar cambios en el código
+                ├── 🧪 Ejecutar tests localmente
+                └── 🔄 Hacer nuevo commit con fixes
+                
+                """
+            }
         }
         always {
-            echo """
-            
-            🧹 LIMPIEZA POST-BUILD
-            ├── Workspace limpiado
-            ├── Recursos liberados
-            ├── Logs archivados
-            └── Pipeline #${BUILD_NUMBER} completado
-            
-            """
-            
-            cleanWs(cleanWhenNotBuilt: false,
-                    deleteDirs: true,
-                    disableDeferredWipeout: true,
-                    notFailBuild: true)
+            script {
+                try {
+                    echo """
+                    
+                    🧹 LIMPIEZA POST-BUILD
+                    ├── Workspace limpiado
+                    ├── Recursos liberados
+                    ├── Logs archivados
+                    └── Pipeline #${BUILD_NUMBER} completado
+                    
+                    """
+                    
+                    cleanWs(cleanWhenNotBuilt: false,
+                            deleteDirs: true,
+                            disableDeferredWipeout: true,
+                            notFailBuild: true)
+                } catch (Exception e) {
+                    echo "⚠️ Cleanup warning: ${e.getMessage()}"
+                }
+            }
         }
     }
 }
